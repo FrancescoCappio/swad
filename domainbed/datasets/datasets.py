@@ -10,6 +10,8 @@ from torchvision.transforms.functional import rotate
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+MY_DATA_PATH = os.path.expanduser('~/data/')
+
 DATASETS = [
     # Debug
     "Debug28",
@@ -217,9 +219,143 @@ class PACS(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 200
     ENVIRONMENTS = ["A", "C", "P", "S"]
 
-    def __init__(self, root):
+    def __init__(self, root, test_env):
         self.dir = os.path.join(root, "PACS/")
         super().__init__(self.dir)
+
+class PACS_OpenDG(MultipleEnvironmentImageFolder):
+    CHECKPOINT_FREQ = 200
+    ENVIRONMENTS = ["A", "C", "P", "S"]
+
+    def __init__(self, root, test_env):
+        self.datasets = []
+        self.environments = ["ArtPainting", "Cartoon", "Photo", "Sketch"]
+        self.dir = MY_DATA_PATH
+        target = self.environments[test_env[0]]
+        dataset_sources_path = 'txt_lists/PACS_DG/no_' + target + '_balanced.txt'
+        dataset_target_path = 'txt_lists/PACS_DG/' + target + '.txt'
+
+        tgt_names, tgt_labels = _dataset_info_standard(dataset_target_path)
+        src_names, src_labels = _dataset_info_per_domain(dataset_sources_path,domain_idx=2)
+
+        tgt_ds = SimpleDataset(tgt_names, tgt_labels, n_classes=7, path_dataset=self.dir)
+
+        for k in src_names.keys():
+            src_ds = SimpleDataset(src_names[k], src_labels[k], n_classes=7, path_dataset=self.dir)
+            self.datasets.append(src_ds)
+
+        self.datasets.insert(test_env[0], tgt_ds)
+
+        self.input_shape = (3, 224, 224)
+        self.num_classes = len(self.datasets[-1].classes)
+
+class OfficeHome_OpenDG(MultipleEnvironmentImageFolder):
+    CHECKPOINT_FREQ = 200
+    ENVIRONMENTS = ["R", "C", "A", "P"]
+
+    def __init__(self, root, test_env):
+        self.datasets = []
+        self.environments = ["RealWorld", "Clipart", "Art", "Product"]
+        self.dir = MY_DATA_PATH
+        target = self.environments[test_env[0]]
+        dataset_sources_path = 'txt_lists/OfficeHome_DG/no_' + target + '_balanced.txt'
+        dataset_target_path = 'txt_lists/OfficeHome_DG/' + target + '.txt'
+
+        tgt_names, tgt_labels = _dataset_info_standard(dataset_target_path)
+        src_names, src_labels = _dataset_info_per_domain(dataset_sources_path,domain_idx=1)
+
+        tgt_ds = SimpleDataset(tgt_names, tgt_labels, n_classes=55, path_dataset=self.dir)
+
+        for k in src_names.keys():
+            src_ds = SimpleDataset(src_names[k], src_labels[k], n_classes=55, path_dataset=self.dir)
+            self.datasets.append(src_ds)
+
+        self.datasets.insert(test_env[0], tgt_ds)
+
+        self.input_shape = (3, 224, 224)
+        self.num_classes = len(self.datasets[-1].classes)
+
+class MultiDatasets_OpenDG(MultipleEnvironmentImageFolder):
+    CHECKPOINT_FREQ = 200
+    N_STEPS = 10001
+    ENVIRONMENTS = ["T", "O", "V", "S"]   # target, Office31, Visda, stl
+
+    def __init__(self, root, test_env):
+        self.datasets = []
+        self.environments = ["Target", "Office31", "Visda2017", "STL"]
+        possible_targets = ["Clipart", "Real", "Painting", "Sketch"]
+        self.dir = MY_DATA_PATH
+        target = possible_targets[test_env[0]]
+        dataset_sources_path = 'txt_lists/MultiDatasets_DG/Sources_balanced.txt'
+        dataset_target_path = 'txt_lists/MultiDatasets_DG/' + target + '.txt'
+
+        tgt_names, tgt_labels = _dataset_info_standard(dataset_target_path)
+        src_names, src_labels = _dataset_info_per_domain(dataset_sources_path,domain_idx=0)
+
+        tgt_ds = SimpleDataset(tgt_names, tgt_labels, n_classes=49, path_dataset=self.dir)
+
+        for k in src_names.keys():
+            src_ds = SimpleDataset(src_names[k], src_labels[k], n_classes=49, path_dataset=self.dir)
+            self.datasets.append(src_ds)
+
+        self.datasets.insert(test_env[0], tgt_ds)
+
+        self.input_shape = (3, 224, 224)
+        self.num_classes = len(self.datasets[-1].classes)
+
+class SimpleDataset(torch.utils.data.Dataset):
+    def __init__(self, names,labels, path_dataset,n_classes):
+        self.data_path = path_dataset
+        self.names = names
+        self.labels = labels
+        self.classes = range(n_classes)
+
+    def __getitem__(self, index):
+
+        framename = self.data_path + '/' + self.names[index]
+        img = Image.open(framename).convert('RGB')
+        # transforms are applied later
+        return img, int(self.labels[index]), index
+
+    def __len__(self):
+        return len(self.names)
+
+def _dataset_info_standard(txt_labels):
+    with open(txt_labels, 'r') as f:
+        images_list = f.readlines()
+
+    file_names = []
+    labels = []
+
+    for row in images_list:
+        row = row.split(' ')
+        file_names.append(row[0])
+        labels.append(int(row[1]))
+
+    return file_names, labels
+
+def _dataset_info_per_domain(txt_labels,domain_idx=1):
+    with open(txt_labels, 'r') as f:
+        images_list = f.readlines()
+
+    file_names = {}
+    labels = {}
+    domains = []
+    domain_count = 0
+
+    for row in images_list:
+        row = row.split(' ')
+        domain = row[0].split('/')[domain_idx]
+        if domain not in domains:
+            domains.append(domain)
+            domain_count += 1
+            file_names[domain] = []
+            labels[domain] = []
+
+        file_names[domain].append(row[0])
+        labels[domain].append(int(row[1]))
+
+    return file_names, labels
 
 
 class DomainNet(MultipleEnvironmentImageFolder):

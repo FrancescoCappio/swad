@@ -14,7 +14,7 @@ def _hparams(algorithm, dataset, random_state):
 
     hparams["data_augmentation"] = (True, True)
     hparams["val_augment"] = (False, False)  # augmentation for in-domain validation set
-    hparams["resnet18"] = (False, False)
+    hparams["resnet18"] = (True, True)
     hparams["resnet_dropout"] = (0.0, random_state.choice([0.0, 0.1, 0.5]))
     hparams["class_balanced"] = (False, False)
     hparams["scheduler"] = ("const", "const")

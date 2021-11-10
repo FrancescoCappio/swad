@@ -1,4 +1,5 @@
 import collections
+import os
 import json
 import time
 import copy
@@ -65,6 +66,7 @@ def train(test_envs, args, hparams, n_steps, checkpoint_freq, logger, writer, ta
     else:
         testenv_properties = [str(dataset.environments[i]) for i in test_envs]
         testenv_name = "te_" + "_".join(testenv_properties)
+
 
     logger.info(
         "Testenv name escaping {} -> {}".format(testenv_name, testenv_name.replace(".", ""))
@@ -155,6 +157,8 @@ def train(test_envs, args, hparams, n_steps, checkpoint_freq, logger, writer, ta
         evalmode=args.evalmode,
         debug=args.debug,
         target_env=target_env,
+        open_set=args.open_set,
+        known_classes=args.known_classes,
     )
 
     swad = None
@@ -305,7 +309,17 @@ def train(test_envs, args, hparams, n_steps, checkpoint_freq, logger, writer, ta
             swa_utils.update_bn(train_minibatches_iterator, swad_algorithm, n_steps)
 
         logger.warning("Evaluate SWAD ...")
-        accuracies, summaries = evaluator.evaluate(swad_algorithm)
+        accuracies, summaries, test_predictions = evaluator.evaluate(swad_algorithm, ret_predictions=True)
+
+        preds_dir = args.out_dir / "predictions"
+        if not os.path.isdir(preds_dir):
+            os.makedirs(preds_dir)
+        with open(os.path.join(preds_dir, f"test_env_{test_envs[0]}.txt"), "w") as out_f:
+            ordered_keys = [el for el in test_predictions.keys()]
+            ordered_keys.sort()
+            for k in ordered_keys:
+                out_f.write(f"{k},{test_predictions[k]['cls']},{test_predictions[k]['conf']}\n")
+
         results = {**summaries, **accuracies}
         start = swad_algorithm.start_step
         end = swad_algorithm.end_step

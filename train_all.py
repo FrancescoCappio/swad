@@ -57,6 +57,19 @@ def main():
     parser.add_argument("--prebuild_loader", action="store_true", help="Pre-build eval loaders")
     args, left_argv = parser.parse_known_args()
 
+    args.open_set = False
+    args.known_classes = 0
+    if args.dataset == "PACS_OpenDG":
+        args.open_set = True
+        args.known_classes = 6
+    if args.dataset == "OfficeHome_OpenDG":
+        args.open_set = True
+        args.known_classes = 54
+    if args.dataset == "MultiDatasets_OpenDG":
+        args.open_set = True
+        args.known_classes = 48
+
+
     # setup hparams
     hparams = hparams_registry.default_hparams(args.algorithm, args.dataset)
 

@@ -41,7 +41,7 @@ def set_transfroms(dset, data_type, hparams, algorithm_class=None):
 def get_dataset(test_envs, args, hparams, algorithm_class=None):
     """Get dataset and split."""
     is_mnist = "MNIST" in args.dataset
-    dataset = vars(datasets)[args.dataset](args.data_dir)
+    dataset = vars(datasets)[args.dataset](args.data_dir, test_envs)
     #  if not isinstance(dataset, MultipleEnvironmentImageFolder):
     #      raise ValueError("SMALL image datasets are not implemented (corrupted), for transform.")
 
@@ -96,8 +96,9 @@ class _SplitDataset(torch.utils.data.Dataset):
         if self.direct_return:
             return self.underlying_dataset[self.keys[key]]
 
-        x, y = self.underlying_dataset[self.keys[key]]
+        x, y, idx = self.underlying_dataset[self.keys[key]]
         ret = {"y": y}
+        ret['idx'] = idx
 
         for key, transform in self.transforms.items():
             ret[key] = transform(x)
